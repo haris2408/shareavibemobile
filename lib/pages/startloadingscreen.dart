@@ -44,8 +44,14 @@ class _StartLoadingState extends State<StartLoading> {
         else {
           // Both user_details and cafe details present, verify session and move to linkPush screen
           final sessionVerified = await verifySession("userDetails.sessionId", "cafeDetails.cafeId");
+          final added_to_cafe = await addtoCafe(userDetails['session_id'],cafeDetails['id'],userDetails['email'] );
           if (sessionVerified) {
-            Navigator.pushReplacementNamed(context, '/linkpusher');
+            if(added_to_cafe){
+              Navigator.pushReplacementNamed(context, '/linkpusher');
+            }
+            else{
+              Navigator.pushReplacementNamed(context, '/locationidentifier');
+            }
           } else {
             // Session not verified, redirect to login screen and clear shared preference
             await clearSharedPreference();
@@ -100,6 +106,27 @@ class _StartLoadingState extends State<StartLoading> {
     }
     return false;
   }
+  Future<bool> addtoCafe(String session_id, String cafe_if, String email) async {
+    const url = 'http://192.168.18.178:8000/api/set_user_cafe_mobile';
+    Map<String, String> body = {
+      'session_id': session_id,
+      'email': email,
+      'cafe_id': cafe_if
+    };
+    try{
+      final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
+      Map<String, dynamic> BODY = jsonDecode(response.body);
+      print(BODY);
+      if(BODY['status'] == 'success'){
+        return true;
+      }
+    }
+    catch(e){
+      print(e);
+      return false;
+    }
+    return false;
+  }
 
   Future<bool> verifySession(String sessionId, String cafeId) async {
     return true;
@@ -127,4 +154,6 @@ class _StartLoadingState extends State<StartLoading> {
       ),
     );
   }
+
+
 }

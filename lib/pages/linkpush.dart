@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'package:code/components/currently_playing.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// import 'package:flutter_icons/flutter_icons.dart';
 
 import '../components/cafe_screen_drawer.dart';
 import '../models/cafe.dart';
@@ -26,18 +28,49 @@ class _LinkPushState extends State<LinkPush> {
   );
   String tokenValue = "-";
   String linkText = '';
-  bool isLiked = false;
   String session_id = '';
+  dynamic userdets;
 
   @override
   void initState() {
     loadCafe();
-    loadToken();
     super.initState();
   }
 
   Future<void> loadToken() async{
+    try {
+      const url = 'http://192.168.18.178:8000/api/get_user_token';
 
+      Map<String, String> body = {
+        'session_id': session_id,
+        'email': userdets['email'],
+        'cafe_id': this.currCafe.id
+      };
+      final response = await http.post(Uri.parse(url), body: jsonEncode(body));
+      print('************************inside loadToken');
+
+      if (response.statusCode == 200) {
+        // API request was successful
+        print(response.statusCode);
+        dynamic apiResult = json.decode(response.body); // Assuming the API response is JSON
+        print(apiResult);
+        if(apiResult['status'] == 'success') {
+          setState(() {
+            this.tokenValue = apiResult['body']['token_num'].toString();
+          });
+        }
+        else{
+
+        }
+      } else {
+        // Handle API request error
+        print('Error: ${response.statusCode}');
+      }
+    }
+    catch(e){
+      print('error in loadToken');
+      print(e);
+    }
   }
 
   Future<void> loadCafe() async {
@@ -49,10 +82,11 @@ class _LinkPushState extends State<LinkPush> {
     if (jsonString != null) {
       setState(() {
         currCafe = Cafe.fromMap(jsonDecode(jsonString));
-
+        userdets = json.decode(prefs.getString('user').toString());
         this.session_id = sessionid.toString();
         print("Cafe loaded");
         print(currCafe.name);
+        loadToken();
       });
     }
     else{
@@ -206,7 +240,81 @@ class _LinkPushState extends State<LinkPush> {
                           'session_id': this.session_id
                         };
                         final response = await http.post(Uri.parse('http://192.168.18.178:8000/api/add_to_queue_mobile'), body: jsonEncode(body ));
-                        print(response.body);
+                        if(response.statusCode == 200){
+                          // print(response.body.runtimeType);
+                          Map<String, dynamic> BODY = jsonDecode(response.body);
+                          linkController.clear();
+                          showDialog(context: context,
+                              builder: (BuildContext context){
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                  ),
+                                  title: Text("Congratulations!!!"),
+                                  content: Text('Your link has been pushed'),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        Navigator.pop(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16.0),
+                                        ),
+                                        primary: const Color(0xFFFE9F24),
+                                        onPrimary: Colors.black,
+                                        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                                      ),
+                                      child: const Text(
+                                        'ok',
+                                        style: TextStyle(
+                                          fontSize: 18.0,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              });
+                          setState(() {
+                            this.tokenValue = BODY["token"].toString();
+                          });
+                        }
+                        else{
+                          showDialog(context: context,
+                              builder: (BuildContext context){
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                  ),
+                                  title: Text("Warning"),
+                                  content: Text('Error Occured!\n Please Try again!'),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        Navigator.pop(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16.0),
+                                        ),
+                                        primary: const Color(0xFFFE9F24),
+                                        onPrimary: Colors.black,
+                                        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                                      ),
+                                      child: const Text(
+                                        'ok',
+                                        style: TextStyle(
+                                          fontSize: 18.0,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              });
+                        }
+
                       },
                       style: ElevatedButton.styleFrom(
                         primary: Color(0xFFFE9F24),
@@ -266,78 +374,7 @@ class _LinkPushState extends State<LinkPush> {
                 )
               ),
             ),
-            Material(
-              color: Colors.white,
-              child: Container(
-                decoration: const BoxDecoration(
-                    border: Border(
-                      top: BorderSide(
-                        color: Colors.grey,
-                        width: 1.0,
-                        style: BorderStyle.solid,
-                      ),
-                    )
-                ),
-                height: 60,
-                width: width,
-                alignment: Alignment.bottomCenter,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                          border: Border(
-                              right: BorderSide(
-                                  color: Colors.grey,
-                                  width: 0.5,
-                                  style: BorderStyle.solid
-                              )
-                          )
-                      ),
-                      padding: EdgeInsets.all(10),
-                      child: const Text(
-                        'Left Text',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: Color(0xFF333232),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Container(
-
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: const SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Text(
-                            'Loooooooooooooooooooooooooooooooooooooooooooooooooooooong Text',
-                            style: TextStyle(
-                              fontFamily: 'Poppins',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFF333232),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(
-                        isLiked ? Icons.favorite : Icons.favorite_border,
-                        color: isLiked ? Colors.red : null,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          isLiked = !isLiked;
-                        });
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            currentPlaying(),
           ],
         ),
       ),

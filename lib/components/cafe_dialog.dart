@@ -71,6 +71,7 @@ class CafeDialog extends StatelessWidget {
             SharedPreferences prefs = await SharedPreferences.getInstance();
             try {
               await prefs.setString('cafe', jsonEncode(cafe.toMap()));
+
               Navigator.pushReplacementNamed(context, '/linkpusher');
             }
             catch(e){
