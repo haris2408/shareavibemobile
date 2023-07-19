@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:code/components/helper_var.dart';
 
 class StartLoading extends StatefulWidget {
   const StartLoading({Key? key}) : super(key: key);
@@ -88,7 +89,7 @@ class _StartLoadingState extends State<StartLoading> {
   }
 
   Future<bool> verifySessionId(String sessionId) async {
-    const url = 'http://192.168.18.178:8000/api/verify_session_mobile';
+    const url = '${baseurl}/api/verify_session_mobile';
     Map<String, String> body = {
       'session_id': sessionId
     };
@@ -107,7 +108,7 @@ class _StartLoadingState extends State<StartLoading> {
     return false;
   }
   Future<bool> addtoCafe(String session_id, String cafe_if, String email) async {
-    const url = 'http://192.168.18.178:8000/api/set_user_cafe_mobile';
+    const url = '${baseurl}/api/set_user_cafe_mobile';
     Map<String, String> body = {
       'session_id': session_id,
       'email': email,

@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 
 import '../components/loadingoverlay.dart';
+import 'package:code/components/helper_var.dart';
 
 
 class Signup extends StatefulWidget {
@@ -215,7 +216,7 @@ class _SignupState extends State<Signup> {
                         }
 
 
-                        const url = 'http://192.168.18.178:8000/api/signup_mobile';
+                        const url = '${baseurl}/api/signup_mobile';
                         Map<String, String> body = {
                           'name': name,
                           'email': email,

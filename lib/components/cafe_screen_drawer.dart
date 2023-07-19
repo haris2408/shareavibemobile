@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:code/components/helper_var.dart';
 
 class MyDrawer extends StatefulWidget {
   const MyDrawer({Key? key}) : super(key: key);
@@ -18,15 +19,19 @@ class _MyDrawerState extends State<MyDrawer> {
   int _remainingTime = 3600; // Countdown timer duration in seconds
   Timer? _timer; // Timer object to handle countdown timer
   late Map<String, dynamic> userdets;
+  late Map<String, dynamic> cafe_dict;
+  late String sesh_id;
 
   @override
   void initState() {
     super.initState();
+    userdets = Map();
+    userdets['name'] = 'test';
     if (_pushesAvailable == 0) {
       _freePushesAvailable = true;
       startTimer();
     }
-    loadUser();
+    loadSharedPref();
   }
 
   @override
@@ -172,9 +177,11 @@ class _MyDrawerState extends State<MyDrawer> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        const url = 'http://192.168.18.178:8000/api/logout_mobile';
-                        Map<String, String> body = {
-                          'session_id': userdets['session_id']
+                        const url = '${baseurl}/api/leave_cafe';
+                        Map<String, dynamic> body = {
+                          'session_id': sesh_id,
+                          'email': userdets['email'],
+                          'cafe_id': cafe_dict['id']
                         };
                         try{
                           final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
@@ -182,8 +189,8 @@ class _MyDrawerState extends State<MyDrawer> {
                           print(BODY);
                           if(BODY['status'] == 'success'){
                             SharedPreferences prefs = await SharedPreferences.getInstance();
-                            prefs.clear();
-                            Navigator.pushReplacementNamed(context, '/login');
+                            prefs.remove('cafe');
+                            Navigator.pushReplacementNamed(context, '/locationidentifier');
                           }
                         }
                         catch(e){
@@ -203,7 +210,7 @@ class _MyDrawerState extends State<MyDrawer> {
                         minimumSize: Size(115.0, 30.0),
                       ),
                       child: const Text(
-                        'Logout',
+                        'Leave Cafe',
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 16.0,
@@ -212,6 +219,48 @@ class _MyDrawerState extends State<MyDrawer> {
                         ),
                       ),
                     ),
+                    // ElevatedButton(
+                    //   onPressed: () async {
+                    //     const url = '${baseurl}/api/logout_mobile';
+                    //     Map<String, String> body = {
+                    //       'session_id': userdets['session_id']
+                    //     };
+                    //     try{
+                    //       final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
+                    //       Map<String, dynamic> BODY = jsonDecode(response.body);
+                    //       print(BODY);
+                    //       if(BODY['status'] == 'success'){
+                    //         SharedPreferences prefs = await SharedPreferences.getInstance();
+                    //         prefs.clear();
+                    //         Navigator.pushReplacementNamed(context, '/login');
+                    //       }
+                    //     }
+                    //     catch(e){
+                    //       print(e);
+                    //     }
+                    //   },
+                    //   style: ElevatedButton.styleFrom(
+                    //     primary: Colors.white,
+                    //     side: BorderSide(color: Color(0xFFFE9F24)),
+                    //     shape: const RoundedRectangleBorder(
+                    //       borderRadius: BorderRadius.horizontal(
+                    //         left: Radius.circular(50.0),
+                    //         right: Radius.circular(50.0),
+                    //       ),
+                    //     ),
+                    //     padding: EdgeInsets.symmetric(vertical: 10.0),
+                    //     minimumSize: Size(115.0, 30.0),
+                    //   ),
+                    //   child: const Text(
+                    //     'Logout',
+                    //     style: TextStyle(
+                    //       fontFamily: 'Poppins',
+                    //       fontSize: 16.0,
+                    //       fontWeight: FontWeight.w800,
+                    //       color: Colors.black,
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
               ),
@@ -221,15 +270,34 @@ class _MyDrawerState extends State<MyDrawer> {
       ),
     );
   }
-
-  Future<void> loadUser() async {
+  Future<String?> getValueFromSharedPreferences(String key) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    if(!prefs.containsKey('user')){
-      return null;
-    }
-    dynamic usersss = prefs.getString('user');
-    setState((){
-      userdets = json.decode(usersss);
-    });
+    return prefs.getString(key);
   }
+  void loadSharedPref() async{
+    String? cafe = await getValueFromSharedPreferences('cafe');
+    String? user = await getValueFromSharedPreferences('user');
+    String? session_id = await getValueFromSharedPreferences('session_id');
+    if (cafe != null && user != null && session_id != null) {
+      print("in loadSharedPref cafe side panel");
+      // Value found in shared preferences
+      setState((){
+        cafe_dict = jsonDecode(cafe.toString());
+        print(cafe_dict);
+        print(cafe_dict.runtimeType);
+        userdets = jsonDecode(user);
+        print(userdets.toString());
+
+        sesh_id = session_id;
+        print(session_id);
+        print(session_id.runtimeType);
+      });
+
+    } else {
+      // Value not found
+      print('Value not found in shared preferences');
+    }
+  }
+
+
 }

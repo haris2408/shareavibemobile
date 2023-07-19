@@ -13,6 +13,7 @@ import 'package:http/http.dart' as http;
 import '../components/fetch_location_inquiry.dart';
 import '../components/loadingoverlay.dart';
 import '../models/cafe.dart';
+import 'package:code/components/helper_var.dart';
 
 class LocationIdentify extends StatefulWidget {
   const LocationIdentify({Key? key}) : super(key: key);
@@ -23,8 +24,8 @@ class LocationIdentify extends StatefulWidget {
 
 class _LocationIdentifyState extends State<LocationIdentify> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  late double lat;
-  late double long;
+  double lat = -1.0;
+  double long = -1.0;
   late String message = "press button to fetch location";
   late Position _position = Position(longitude: 0, latitude: 0, timestamp: DateTime.now(), accuracy: 1, altitude: 2, heading: 0, speed: 0, speedAccuracy: 0);
   bool _loading = false;
@@ -46,7 +47,8 @@ class _LocationIdentifyState extends State<LocationIdentify> {
                 onYesPressed: ()async{
                   Navigator.of(context).pop();
 
-                  get_cafes();
+                  await get_cafes();
+
 
 
                   print("**********FetchLocationInquiry pressed");
@@ -116,7 +118,7 @@ class _LocationIdentifyState extends State<LocationIdentify> {
 
   Future<void> _hit_api(double lat,double long) async{
     try{
-      final URI = Uri.parse("http://192.168.18.178:8000/getcafes/${lat}/${long}");
+      final URI = Uri.parse("${baseurl}/getcafes/${lat}/${long}");
       // print(URI);
       final response = await http.get(URI).timeout(Duration(seconds: 10));
       // // print(response.body);
@@ -124,8 +126,11 @@ class _LocationIdentifyState extends State<LocationIdentify> {
       // // print(_response);
     }
     on TimeoutException catch (_) {
+      print("timed out");
       return;
     } catch (e) {
+      print("error in get cafes");
+      print(e);
       return;
     }
 
@@ -144,7 +149,7 @@ class _LocationIdentifyState extends State<LocationIdentify> {
     //     // print("*********lat : ${value.latitude}");
     //     // print("*********long : ${value.longitude}");
     // });
-    await _determinePosition().then((value) {
+    await _determinePosition().then((value){
       // print("*********lat : ${value.latitude}");
       // print("*********long : ${value.longitude}");
       setState(() {
@@ -153,8 +158,8 @@ class _LocationIdentifyState extends State<LocationIdentify> {
         message = '${value.latitude} + ${value.longitude}';
         _position = value;
       });
-    });
 
+    });
     await _hit_api(lat, long);
 
     setState(() {
@@ -222,7 +227,7 @@ class _LocationIdentifyState extends State<LocationIdentify> {
                 width: 0.6*screenWidth,
                 child: ElevatedButton(
                   onPressed: () async {
-                    get_cafes();
+                    await get_cafes();
 
                     // print("**********fetch location pressed");
 
@@ -290,10 +295,10 @@ class _LocationIdentifyState extends State<LocationIdentify> {
           okayFunction: (){
             Navigator.of(context).pop();
           },
-          tryAgainFunction: (){
+          tryAgainFunction: () async {
             Navigator.of(context).pop();
 
-            get_cafes();
+            await get_cafes();
 
 
             // print("**********Try Again pressed");

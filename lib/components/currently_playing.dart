@@ -22,7 +22,8 @@ class _currentPlayingState extends State<currentPlaying> {
   String sesh_id = '';
   String curr_token = '####';
   String curr_song_name = "looooooooooooooooong";
-
+  int mins = 0;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -30,9 +31,15 @@ class _currentPlayingState extends State<currentPlaying> {
     loadSharedPref();
     // Start the timer when the widget is initialized
 
-    Timer.periodic(const Duration(minutes: 1), (Timer timer) {
+    _timer = Timer.periodic(Duration(minutes: 2), (Timer timer) {
       fetchData(); // Make the API request every 2 minutes
     });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    super.dispose();
   }
 
   Future<String?> getValueFromSharedPreferences(String key) async {
@@ -85,6 +92,10 @@ class _currentPlayingState extends State<currentPlaying> {
           setState(() {
             this.curr_token = apiResult['body']['curr_token'].toString();
             this.curr_song_name = apiResult['body']['song_name'];
+            this.mins += 1;
+            if(this.mins > 4){
+              this.mins = 1;
+            }
           });
         });
       } else {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:code/components/helper_var.dart';
 
 class MyDrawer extends StatefulWidget {
   const MyDrawer({Key? key}) : super(key: key);
@@ -150,7 +151,7 @@ class _MyDrawerState extends State<MyDrawer> {
                     ),
                     ElevatedButton(
                       onPressed: () async {
-                        const url = 'http://192.168.18.178:8000/api/logout_mobile';
+                        const url = '${baseurl}/api/logout_mobile';
                         Map<String, String> body = {
                           'session_id': userdets['session_id']
                         };

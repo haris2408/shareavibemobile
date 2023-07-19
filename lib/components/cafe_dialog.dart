@@ -1,18 +1,42 @@
 import 'dart:convert';
-
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:code/components/helper_var.dart';
 import '../models/cafe.dart';
 
 
 class CafeDialog extends StatelessWidget {
   final Cafe cafe;
+  late Map<String, dynamic> userdets;
+  late String sesh_id;
   // final Function onYesPressed;
   final Function onNoPressed;
+  Future<String?> getValueFromSharedPreferences(String key) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+  Future<void> loadSharedPref() async{
+    String? user = await getValueFromSharedPreferences('user');
+    String? session_id = await getValueFromSharedPreferences('session_id');
+    if (user != null && session_id != null) {
+      print("in loadSharedPref cafe dialog box");
+      // Value found in shared preferences
+      userdets = jsonDecode(user);
+      print(userdets.toString());
 
+      sesh_id = session_id;
+      print(session_id);
+      print(session_id.runtimeType);
+    } else {
+      // Value not found
+      print('Value not found in shared preferences');
+    }
+  }
 
   CafeDialog({required this.cafe, required this.onNoPressed});
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +54,7 @@ class CafeDialog extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16.0),
               child: Image.network(
-                "http://192.168.18.178:8000${cafe.logo}",
+                "${baseurl}${cafe.logo}",
                 fit: BoxFit.cover,
               ),
             ),
@@ -70,9 +94,12 @@ class CafeDialog extends StatelessWidget {
           onPressed: () async {
             SharedPreferences prefs = await SharedPreferences.getInstance();
             try {
+              await loadSharedPref();
               await prefs.setString('cafe', jsonEncode(cafe.toMap()));
-
-              Navigator.pushReplacementNamed(context, '/linkpusher');
+              if(await addtoCafe(sesh_id, cafe.id, userdets['email']))
+              {
+                Navigator.pushReplacementNamed(context, '/linkpusher');
+              }
             }
             catch(e){
               print("error in dialog yes pressed");
@@ -100,5 +127,29 @@ class CafeDialog extends StatelessWidget {
       ],
     );
   }
+
+  Future<bool> addtoCafe(String session_id, String cafe_if, String email) async {
+    const url = '${baseurl}/api/set_user_cafe_mobile';
+    Map<String, String> body = {
+      'session_id': session_id,
+      'email': email,
+      'cafe_id': cafe_if
+    };
+    try{
+      final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
+      Map<String, dynamic> BODY = jsonDecode(response.body);
+      print(BODY);
+      if(BODY['status'] == 'success'){
+        return true;
+      }
+    }
+    catch(e){
+      print("error in addtoCfae");
+      print(e);
+      return false;
+    }
+    return false;
+  }
+
 
 }

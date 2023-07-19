@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:code/components/helper_var.dart';
 
 import '../components/loadingoverlay.dart';
 
@@ -176,7 +177,7 @@ class _LoginState extends State<Login> {
                           return;
                         }
 
-                        const url = 'http://192.168.18.178:8000/api/login_mobile';
+                        const url = '${baseurl}/api/login_mobile';
                         Map<String, String> body = {
                           'email': email,
                           'password': password,
@@ -184,7 +185,7 @@ class _LoginState extends State<Login> {
                         setState((){
                           _loading = true;
                         });
-                        final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
+                        final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(const Duration(seconds: 10));
 
                         setState((){
                           _loading = false;

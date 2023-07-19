@@ -1,12 +1,18 @@
 import 'dart:convert';
+import 'package:android_intent/android_intent.dart';
 import 'package:code/components/currently_playing.dart';
+import 'package:device_apps/device_apps.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:code/components/helper_var.dart';
 // import 'package:flutter_icons/flutter_icons.dart';
 
 import '../components/cafe_screen_drawer.dart';
 import '../models/cafe.dart';
+import 'package:cron/cron.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class LinkPush extends StatefulWidget {
   const LinkPush({Key? key}) : super(key: key);
@@ -30,6 +36,9 @@ class _LinkPushState extends State<LinkPush> {
   String linkText = '';
   String session_id = '';
   dynamic userdets;
+  final cron = Cron();
+  ScheduledTask? scheduledTask;
+  final DateTime enterTime = DateTime.now();
 
   @override
   void initState() {
@@ -39,7 +48,7 @@ class _LinkPushState extends State<LinkPush> {
 
   Future<void> loadToken() async{
     try {
-      const url = 'http://192.168.18.178:8000/api/get_user_token';
+      const url = '${baseurl}/api/get_user_token';
 
       Map<String, String> body = {
         'session_id': session_id,
@@ -99,6 +108,63 @@ class _LinkPushState extends State<LinkPush> {
     // Additional refresh logic if needed
   }
 
+  bool isYouTubeLink(String input) {
+    // Regular expression pattern to match YouTube URLs
+    RegExp youtubeRegex = RegExp(
+      r'^https?:\/\/(?:www\.)?youtube\.com\/.*(\bwatch\b|\bv\b|[\w-]{11})',
+      caseSensitive: false,
+      multiLine: false,
+    );
+
+    return youtubeRegex.hasMatch(input);
+  }
+
+  Future<void> checkAndLeaveCafe() async {
+    if(tokenValue == '-'){
+      return;
+    }
+    String url = 'http://192.168.18.178:8000/api/get_current_playing_song';
+    print(url);
+    Map<String, dynamic> body = {
+      'session_id': session_id,
+      'email': userdets['email'],
+      'cafe_id': currCafe.id
+    };
+    final response = await http.post(Uri.parse(url), body:jsonEncode(body));
+    if (response.statusCode == 200){
+      dynamic apiResult = json.decode(response.body);
+      if (int.parse(this.tokenValue) >= apiResult['body']['curr_token']){
+        return;
+      }
+      if(DateTime.now().difference(this.enterTime).inMinutes < 60){
+        return;
+      }
+      this.scheduledTask!.cancel();
+      const url = '${baseurl}/api/leave_cafe';
+      Map<String, dynamic> body = {
+        'session_id': session_id,
+        'email': userdets['email'],
+        'cafe_id': currCafe.id
+      };
+      try{
+        final response = await http.post(Uri.parse(url), body: jsonEncode(body)).timeout(Duration(seconds: 10));
+        Map<String, dynamic> BODY = jsonDecode(response.body);
+        print(BODY);
+        if(BODY['status'] == 'success'){
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.remove('cafe');
+          Navigator.pushReplacementNamed(context, '/locationidentifier');
+        }
+      }
+      catch(e){
+        print(e);
+      }
+    }
+  }
+
+  void startCronJob(){
+    this.scheduledTask =  cron.schedule(Schedule.parse("* */1 * * * *"), checkAndLeaveCafe);
+  }
   @override
   Widget build(BuildContext context) {
 
@@ -143,7 +209,7 @@ class _LinkPushState extends State<LinkPush> {
                               ),
                             ),
                             Image.network(
-                              "http://192.168.18.178:8000${currCafe.logo}",
+                              "${baseurl}${currCafe.logo}",
                               height: 100,
                               width: 100,
                             ),
@@ -234,12 +300,47 @@ class _LinkPushState extends State<LinkPush> {
                         print("**********push link pressed");
                         print(linkText);
                         this.linkText = linkController.text.trim();
+                        if(! this.isYouTubeLink(linkText)){
+                          showDialog(context: context,
+                              builder: (BuildContext context){
+                                return AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(16.0),
+                                  ),
+                                  title: Text("Alert!!!"),
+                                  content: Text('We currenlty only support youtube links!'),
+                                  actions: [
+                                    ElevatedButton(
+                                      onPressed: () async {
+                                        Navigator.pop(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(16.0),
+                                        ),
+                                        primary: const Color(0xFFFE9F24),
+                                        onPrimary: Colors.black,
+                                        padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+                                      ),
+                                      child: const Text(
+                                        'ok',
+                                        style: TextStyle(
+                                          fontSize: 18.0,
+                                          fontFamily: 'Poppins',
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              });
+                          return;
+                        }
                         Map<String, String> body = {
                           'youtube_link': this.linkText,
                           'cafe_id': this.currCafe.id,
                           'session_id': this.session_id
                         };
-                        final response = await http.post(Uri.parse('http://192.168.18.178:8000/api/add_to_queue_mobile'), body: jsonEncode(body ));
+                        final response = await http.post(Uri.parse('${baseurl}/api/add_to_queue_mobile'), body: jsonEncode(body ));
                         if(response.statusCode == 200){
                           // print(response.body.runtimeType);
                           Map<String, dynamic> BODY = jsonDecode(response.body);
@@ -346,8 +447,15 @@ class _LinkPushState extends State<LinkPush> {
                             'images/yt_logo.png',
                           ),
                           iconSize: (1/3)*(width*0.45),
-                          onPressed: () {
+                          onPressed: () async {
                             print("*************youtube pressed");
+
+                            // DeviceApps.openApp('com.google.android.youtube');
+
+                            Uri youtubeUrl = Uri.parse('https://www.youtube.com'); // YouTube URL
+
+                            await launchUrl(youtubeUrl,
+                            mode: LaunchMode.externalApplication);
                           },
                         ),
                         IconButton(
@@ -357,6 +465,41 @@ class _LinkPushState extends State<LinkPush> {
                           iconSize: (1/3)*(width*0.45),
                           onPressed: () {
                             print("*************spotify pressed");
+                            showDialog(
+                                context: context,
+                                builder: (BuildContext context){
+                                  return AlertDialog(
+                                    title: const Text("Apologies"),
+                                    content: Text("Spotify will be available soon on our platform"),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16.0),
+                                    ),
+                                    actions: <Widget>[
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          primary: Colors.grey[400],
+                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                        ),
+                                        child: const Text(
+                                          "Okay",
+                                          style: TextStyle(
+                                            fontFamily: "Poppins",
+                                            fontSize: 11,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+
+                                }
+                            );
                           },
                         ),
                         IconButton(
@@ -366,6 +509,41 @@ class _LinkPushState extends State<LinkPush> {
                           iconSize: (1/3)*(width*0.45),
                           onPressed: () {
                             print("*************soundcloud pressed");
+                            showDialog(
+                                context: context,
+                                builder: (BuildContext context){
+                                  return AlertDialog(
+                                    title: const Text("Apologies"),
+                                    content: Text("Soundcloud will be available soon on our platform"),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16.0),
+                                    ),
+                                    actions: <Widget>[
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                        },
+                                        style: ElevatedButton.styleFrom(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(16),
+                                          ),
+                                          primary: Colors.grey[400],
+                                          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                                        ),
+                                        child: const Text(
+                                          "Okay",
+                                          style: TextStyle(
+                                            fontFamily: "Poppins",
+                                            fontSize: 11,
+                                            color: Colors.black,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  );
+
+                                }
+                            );
                           },
                         ),
                       ],

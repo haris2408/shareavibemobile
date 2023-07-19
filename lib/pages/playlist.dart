@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/cafe.dart';
 import 'package:http/http.dart' as http;
+import 'package:code/components/helper_var.dart';
 
 
 class PlaylistPage extends StatefulWidget {
@@ -35,7 +36,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Future<List<dynamic>> fetchPlaylists(String cafeId) async {
-    final response = await http.get(Uri.parse('http://192.168.18.178:8000/api/get_playlist/$cafeId'));
+    final response = await http.get(Uri.parse('${baseurl}/api/get_playlist/$cafeId'));
     // print("***************************"+cafeId);
     if (response.statusCode == 200) {
       final jsonResponse = jsonDecode(response.body);
